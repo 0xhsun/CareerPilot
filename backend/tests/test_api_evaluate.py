@@ -47,6 +47,7 @@ def test_job_description_included_in_prompt(client):
         patch("app.routers.evaluate.save_evaluation", AsyncMock()),
     ):
         mock_settings.OPENAI_API_KEY = "sk-test"
+        mock_settings.OPENAI_BASE_URL = ""
         resp = client.post(
             "/api/jobs/evaluate",
             json={
@@ -74,6 +75,7 @@ def test_evaluate_without_job_description_omits_jd_section(client):
         patch("app.routers.evaluate.save_evaluation", AsyncMock()),
     ):
         mock_settings.OPENAI_API_KEY = "sk-test"
+        mock_settings.OPENAI_BASE_URL = ""
         resp = client.post(
             "/api/jobs/evaluate",
             json={"job": _job_payload(), "user_cv": ""},

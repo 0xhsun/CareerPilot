@@ -3,6 +3,7 @@ from openai import AsyncOpenAI
 
 from ..config import settings
 from ..db import delete_cover_letter, get_cover_letter, list_cover_letters, save_cover_letter
+from ..llm import chat_extra
 from ..models import (
     CoverLetterRecord,
     CoverLetterRequest,
@@ -49,7 +50,10 @@ def _make_client() -> AsyncOpenAI:
             status_code=503,
             detail="尚未設定 OPENAI_API_KEY，請在 backend/.env 加入 OPENAI_API_KEY=sk-...",
         )
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,
+    )
 
 
 @router.post("/api/jobs/cover-letter", response_model=CoverLetterResponse)
@@ -80,7 +84,7 @@ async def generate_cover_letter(request: CoverLetterRequest):
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {
                     "role": "user",
@@ -94,6 +98,7 @@ async def generate_cover_letter(request: CoverLetterRequest):
             ],
             temperature=0.7,
             max_completion_tokens=1200,
+            **chat_extra(),
         )
         letter = (response.choices[0].message.content or "").strip()
     except Exception as e:
@@ -112,7 +117,7 @@ async def extract_company_name(request: ExtractCompanyRequest):
     client = _make_client()
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {
                     "role": "user",
@@ -123,6 +128,7 @@ async def extract_company_name(request: ExtractCompanyRequest):
             ],
             temperature=0,
             max_completion_tokens=50,
+            **chat_extra(),
         )
         company_name = (response.choices[0].message.content or "").strip()
     except Exception as e:

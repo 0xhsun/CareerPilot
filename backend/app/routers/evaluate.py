@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 
 from ..config import settings
 from ..db import get_cached, save_evaluation
+from ..llm import chat_extra
 from ..models import (
     EvaluationDimensions,
     JobEvaluateRequest,
@@ -33,7 +34,10 @@ def _make_openai_client() -> AsyncOpenAI:
             status_code=503,
             detail="尚未設定 OPENAI_API_KEY，請在 backend/.env 加入 OPENAI_API_KEY=sk-...",
         )
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,
+    )
 
 
 def _compute_hash(*parts: str) -> str:
@@ -44,11 +48,12 @@ def _compute_hash(*parts: str) -> str:
 async def _call_openai(client: AsyncOpenAI, prompt: str) -> JobEvaluateResponse:
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.3,
             max_completion_tokens=900,
+            **chat_extra(),
         )
         data = json.loads(response.choices[0].message.content)
     except Exception as e:

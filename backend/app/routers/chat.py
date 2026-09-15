@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from ..config import settings
+from ..llm import chat_extra
 from ..models import JobListing
 
 router = APIRouter(tags=["chat"])
@@ -51,7 +52,10 @@ async def chat(request: ChatRequest):
             detail="尚未設定 OPENAI_API_KEY，請在 backend/.env 加入 OPENAI_API_KEY=sk-...",
         )
 
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,
+    )
     job = request.job
     system_content = _SYSTEM_PROMPT.format(
         job=job.job,
@@ -69,12 +73,13 @@ async def chat(request: ChatRequest):
     async def generate():
         try:
             stream = await client.chat.completions.create(
-                model="gpt-5.4-mini",
+                model=settings.OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": system_content},
                     *[{"role": m.role, "content": m.content} for m in request.messages],
                 ],
                 stream=True,
+                **chat_extra(),
             )
             async for chunk in stream:
                 delta = chunk.choices[0].delta.content

@@ -19,6 +19,7 @@ from ..db import (
     save_rag_document,
     save_resume_match,
 )
+from ..llm import chat_extra
 from ..models import (
     CVExtractRequest,
     MockInterviewRequest,
@@ -44,12 +45,15 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
 def _make_openai_client() -> AsyncOpenAI:
     if not settings.OPENAI_API_KEY:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY is missing")
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,
+    )
 
 
 async def _get_embedding(client: AsyncOpenAI, text: str) -> list[float]:
     response = await client.embeddings.create(
-        model="text-embedding-3-small",
+        model=settings.EMBEDDING_MODEL,
         input=text,
     )
     return response.data[0].embedding
@@ -116,7 +120,7 @@ Each object must have:
 - 'content': a detailed paragraph describing it."""
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": req.cv_text},
@@ -124,6 +128,7 @@ Each object must have:
             response_format={"type": "json_object"},
             temperature=0.3,
             max_completion_tokens=1500,
+            **chat_extra(),
         )
         data = json.loads(response.choices[0].message.content or "{}")
         items = data.get("items", [])
@@ -167,7 +172,7 @@ All text values must be written in Traditional Chinese (繁體中文)."""
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -175,6 +180,7 @@ All text values must be written in Traditional Chinese (繁體中文)."""
             response_format={"type": "json_object"},
             temperature=0.3,
             max_completion_tokens=2500,
+            **chat_extra(),
         )
         data = json.loads(response.choices[0].message.content or "{}")
 
@@ -215,7 +221,7 @@ All text values must be written in Traditional Chinese (繁體中文)."""
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -223,6 +229,7 @@ All text values must be written in Traditional Chinese (繁體中文)."""
             response_format={"type": "json_object"},
             temperature=0.3,
             max_completion_tokens=2500,
+            **chat_extra(),
         )
         data = json.loads(response.choices[0].message.content or "{}")
 

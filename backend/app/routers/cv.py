@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from openai import AsyncOpenAI
 
 from ..config import settings
+from ..llm import chat_extra
 from ..models import CVSuggestKeywordsRequest, CVSuggestKeywordsResponse
 
 router = APIRouter(prefix="/api/cv", tags=["cv"])
@@ -45,7 +46,10 @@ async def suggest_keywords(request: CVSuggestKeywordsRequest):
             detail="尚未設定 OPENAI_API_KEY，請在 backend/.env 加入 OPENAI_API_KEY=sk-...",
         )
 
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,
+    )
     prompt = f"""You are a career advisor. Based on the resume below, suggest 3 to 5 Traditional Chinese job search keywords (職位名稱) that best match the candidate's skills and experience.
 
 ## Resume
@@ -63,11 +67,12 @@ Rules:
 """
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.3,
             max_completion_tokens=200,
+            **chat_extra(),
         )
         data = json.loads(response.choices[0].message.content)
     except Exception as e:

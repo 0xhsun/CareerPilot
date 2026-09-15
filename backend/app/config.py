@@ -16,6 +16,27 @@ class Settings(BaseSettings):
     # OpenAI API key (for AI job evaluation)
     OPENAI_API_KEY: str = ""
 
+    # OpenAI-compatible API base URL. Empty = official OpenAI endpoint.
+    # For OpenRouter: https://openrouter.ai/api/v1
+    OPENAI_BASE_URL: str = ""
+
+    # Chat model id. On OpenRouter this needs a vendor prefix, e.g. openai/gpt-5.4-mini
+    OPENAI_MODEL: str = "gpt-5.4-mini"
+
+    # Embedding model id used by the RAG pipeline (rag.py)
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+
+    # Reasoning budget for gateways that support it (e.g. OpenRouter). Left unset,
+    # nothing is sent — the right default for the official OpenAI API, which
+    # rejects the extra field.
+    #   "low" / "medium" / "high"  cap the thinking budget
+    #   "none"                     disable reasoning outright
+    # Unconstrained reasoning models can spend the whole max_completion_tokens
+    # budget on their thinking trace and return empty content, so "low" is the
+    # safe choice on OpenRouter. Note some models (e.g. Gemini 3.x Flash) reject
+    # "none" with "Reasoning is mandatory for this endpoint".
+    REASONING_EFFORT: str = ""
+
     # Debug mode
     DEBUG: bool = True
 

@@ -41,3 +41,6 @@ backend/alerts.json
 # Frontend (Node.js)
 frontend/node_modules/
 frontend/dist/
+
+# Root launcher (npm run start)
+/node_modules/

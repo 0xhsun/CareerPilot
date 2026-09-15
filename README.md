@@ -33,6 +33,24 @@
 - Node.js 18+
 - [uv](https://docs.astral.sh/uv/) 套件管理工具
 
+### 一鍵啟動（推薦）
+
+專案根目錄提供 launcher，一行指令同時跑起前後端：
+
+```bash
+npm install      # 首次需執行，安裝 launcher 依賴
+npm run setup    # 首次需執行，安裝前後端依賴
+npm run start    # 同時啟動 backend (8000) + frontend (3000)
+```
+
+輸出會以 `[backend]` / `[frontend]` 前綴區分，按一次 `Ctrl+C` 兩個一起關閉。
+
+想單獨啟動其中一個：`npm run start:backend` 或 `npm run start:frontend`。
+
+---
+
+以下為手動分別啟動的方式。
+
 ### 1. 啟動後端
 
 ```bash
@@ -48,6 +66,14 @@ uv run uvicorn app.main:app --reload --port 8000  # 啟動 API server
 OPENAI_API_KEY=sk-...
 ```
 
+也支援任何 OpenAI 相容的 endpoint（例如 OpenRouter），額外加上：
+
+```
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=openai/gpt-5.4-mini
+EMBEDDING_MODEL=openai/text-embedding-3-small
+```
+
 ### 2. 啟動前端
 
 ```bash
@@ -58,7 +84,7 @@ npm run dev      # 啟動開發 server
 
 ### 3. 開始使用
 
-打開瀏覽器前往 👉 **http://localhost:5173**
+打開瀏覽器前往 👉 **http://localhost:3000**
 
 | 路由 | 說明 |
 |------|------|

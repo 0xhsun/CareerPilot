@@ -8,6 +8,7 @@ from ..db import (
     list_resume_rewrites,
     save_resume_rewrite,
 )
+from ..llm import chat_extra
 from ..models import ResumeRewriteRecord, ResumeRewriteRequest, ResumeRewriteResponse
 
 router = APIRouter(tags=["resume-rewrite"])
@@ -46,13 +47,16 @@ def _make_client() -> AsyncOpenAI:
             status_code=503,
             detail="尚未設定 OPENAI_API_KEY，請在 backend/.env 加入 OPENAI_API_KEY=sk-...",
         )
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL or None,
+    )
 
 
 async def _call_openai(client: AsyncOpenAI, job_text: str, user_cv: str) -> str:
     try:
         response = await client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {
                     "role": "user",
@@ -61,6 +65,7 @@ async def _call_openai(client: AsyncOpenAI, job_text: str, user_cv: str) -> str:
             ],
             temperature=0.6,
             max_completion_tokens=1800,
+            **chat_extra(),
         )
         text = (response.choices[0].message.content or "").strip()
     except Exception as e:
