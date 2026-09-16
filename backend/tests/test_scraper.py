@@ -187,3 +187,102 @@ class TestParseJob:
         # Pass something that can't be parsed at all
         job = _parse_job(None)  # type: ignore[arg-type]
         assert job is None
+
+
+# ──────────────────────────────────────────
+# Remote-work filter (104: remoteWork / remoteWorkType)
+# ──────────────────────────────────────────
+
+
+class TestRemoteUrl:
+    def test_no_remote_param_when_not_requested(self):
+        assert "remoteWork" not in _build_url("Python", "", 1, "")
+
+    def test_full_remote_maps_to_1(self):
+        assert "remoteWork=1" in _build_url("Python", "", 1, "", "1")
+
+    def test_partial_remote_maps_to_2(self):
+        assert "remoteWork=2" in _build_url("Python", "", 1, "", "2")
+
+    def test_both_joined_with_encoded_comma(self):
+        assert "remoteWork=1%2C2" in _build_url("Python", "", 1, "", "1%2C2")
+
+    def test_taoyuan_area_code_passed_through(self):
+        assert "area=6001005000" in _build_url("Python", "6001005000", 1, "")
+
+
+class TestParseRemoteType:
+    def test_missing_field_defaults_to_none(self):
+        job = _parse_job({"jobName": "X", "link": {"job": "u"}})
+        assert job.remote_type == "none"
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [(0, "none"), (1, "full"), (2, "partial")],
+    )
+    def test_remote_work_type_mapping(self, raw, expected):
+        job = _parse_job({"jobName": "X", "link": {"job": "u"}, "remoteWorkType": raw})
+        assert job.remote_type == expected
+
+
+class TestRemotePostFilter:
+    """104 pads each page with 2 sponsored jobs that ignore remoteWork."""
+
+    @staticmethod
+    def _payload() -> list[dict]:
+        return [
+            {"jobName": "廣告職缺", "link": {"job": "ad"}, "remoteWorkType": 0},
+            {"jobName": "完全遠端", "link": {"job": "full"}, "remoteWorkType": 1},
+            {"jobName": "部分遠端", "link": {"job": "partial"}, "remoteWorkType": 2},
+        ]
+
+    @staticmethod
+    async def _run(remote: list[str]) -> list[str]:
+        from unittest.mock import patch
+
+        from app.models import JobSearchRequest
+        from app.scraper import scrape_jobs
+
+        payload = TestRemotePostFilter._payload()
+
+        class _Resp:
+            status = 200
+
+            async def json(self):
+                return {"data": payload}
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+        class _Session:
+            def __init__(self, *a, **kw):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            def get(self, url):
+                return _Resp()
+
+        with patch("aiohttp.ClientSession", _Session):
+            jobs = await scrape_jobs(JobSearchRequest(keyword="Python", pages=1, remote=remote))
+        return [j.job for j in jobs]
+
+    @pytest.mark.anyio
+    async def test_sponsored_ads_dropped_for_full_remote(self):
+        assert await self._run(["full"]) == ["完全遠端"]
+
+    @pytest.mark.anyio
+    async def test_both_keys_keep_both_but_drop_ads(self):
+        names = await self._run(["full", "partial"])
+        assert set(names) == {"完全遠端", "部分遠端"}
+
+    @pytest.mark.anyio
+    async def test_no_filter_keeps_everything(self):
+        assert len(await self._run([])) == 3

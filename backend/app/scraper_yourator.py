@@ -32,13 +32,23 @@ HEADERS = {
     "Referer": "https://www.yourator.co/jobs",
 }
 
-_AREA_TO_YOURATOR_CODE: dict[str, str] = {
-    "6001001000": "TPE",
-    "6001002000": "NWT",
-    "6001006000": "HSQ",
-    "6001008000": "TXG",
-    "6001014000": "TNN",
-    "6001016000": "KHH",
+# 104 area code → Yourator area codes (from GET /api/v4/areas, verified 2026-09-16).
+# 104's 6001006000 covers 新竹縣市, which Yourator splits into HSZ (市) and HSQ (縣).
+_AREA_TO_YOURATOR_CODE: dict[str, list[str]] = {
+    "6001001000": ["TPE"],
+    "6001002000": ["NWT"],
+    "6001005000": ["TAO"],
+    "6001006000": ["HSZ", "HSQ"],
+    "6001008000": ["TXG"],
+    "6001014000": ["TNN"],
+    "6001016000": ["KHH"],
+}
+
+# Yourator's 工作型態 filter carries remote work; the API param is remote_work[]
+# with values none / partial / full (verified against the site's own filter UI).
+_REMOTE_TO_YOURATOR: dict[str, str] = {
+    "full": "full",
+    "partial": "partial",
 }
 
 _EXP_TO_YOURATOR: dict[str, str] = {
@@ -58,6 +68,7 @@ def _build_url(
     categories: list[str] | None = None,
     salary_min: int = 0,
     salary_max: int = 0,
+    remote: list[str] | None = None,
 ) -> str:
     params: list[tuple[str, str]] = [
         ("term[]", keyword),
@@ -65,8 +76,7 @@ def _build_url(
         ("sort", "most_related"),
     ]
     for code in areas or []:
-        area_code = _AREA_TO_YOURATOR_CODE.get(code)
-        if area_code:
+        for area_code in _AREA_TO_YOURATOR_CODE.get(code, []):
             params.append(("area[]", area_code))
     for code in experience or []:
         exp = _EXP_TO_YOURATOR.get(code)
@@ -74,6 +84,10 @@ def _build_url(
             params.append(("years_of_exp[]", exp))
     for cat in categories or []:
         params.append(("category[]", cat))
+    for key in remote or []:
+        value = _REMOTE_TO_YOURATOR.get(key)
+        if value:
+            params.append(("remote_work[]", value))
     if salary_min > 0 or salary_max > 0:
         low = salary_min if salary_min > 0 else 0
         high = salary_max if salary_max > 0 else 0
@@ -112,7 +126,7 @@ def _parse_salary(salary_str: str | None) -> tuple[int, int, str]:
     return low, high, f"{low:,} ~ {high:,} 元"
 
 
-def _parse_job(item: dict) -> JobListing | None:
+def _parse_job(item: dict, remote_type: str = "") -> JobListing | None:
     try:
         path = item.get("path", "")
         link = f"{YOURATOR_BASE}{path}" if path else ""
@@ -135,6 +149,7 @@ def _parse_job(item: dict) -> JobListing | None:
             salary_low=salary_low,
             salary_high=salary_high,
             is_featured=False,
+            remote_type=remote_type,
             source="Yourator",
         )
     except Exception as e:
@@ -167,18 +182,24 @@ async def scrape_jobs(request: JobSearchRequest) -> list[JobListing]:
             request.categories,
             request.salary_min,
             request.salary_max,
+            request.remote,
         )
         for page in range(1, request.pages + 1)
     ]
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         results = await asyncio.gather(*[_fetch_page(session, url) for url in urls])
 
+    # Job payloads carry no remote field, but Yourator filters server-side, so a
+    # single-value filter tells us what every returned job is.
+    wanted = [r for r in request.remote if r in _REMOTE_TO_YOURATOR]
+    remote_type = wanted[0] if len(wanted) == 1 else ""
+
     seen_links: set[str] = set()
     all_jobs: list[JobListing] = []
 
     for page_items in results:
         for item in page_items:
-            job = _parse_job(item)
+            job = _parse_job(item, remote_type)
             if job is None or not job.link:
                 continue
             if job.link in seen_links:

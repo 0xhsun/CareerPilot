@@ -41,6 +41,7 @@ const FALLBACK_OPTIONS: JobOptions = {
   areas: [
     { value: '6001001000', label: '台北市' },
     { value: '6001002000', label: '新北市' },
+    { value: '6001005000', label: '桃園市' },
     { value: '6001006000', label: '新竹市' },
     { value: '6001008000', label: '台中市' },
     { value: '6001014000', label: '台南市' },
@@ -53,12 +54,21 @@ const FALLBACK_OPTIONS: JobOptions = {
     { value: '10', label: '5-10年' },
     { value: '99', label: '10年以上' },
   ],
+  remote: [
+    { value: 'full', label: '完全遠端' },
+    { value: 'partial', label: '部分遠端' },
+  ],
 }
 
 const SOURCE_BADGE_KEY: Record<string, string> = {
   '104': '104',
   CakeResume: 'cake',
   Yourator: 'yourator',
+}
+
+const REMOTE_BADGE_LABEL: Record<string, string> = {
+  full: '🏠 完全遠端',
+  partial: '🏠 部分遠端',
 }
 
 const SOURCE_BADGE_LABEL: Record<string, string> = {
@@ -72,6 +82,7 @@ export default function SearchPage() {
   const [pages, setPages] = useState(5)
   const [areas, setAreas] = useState<string[]>([])
   const [experience, setExperience] = useState<string[]>([])
+  const [remote, setRemote] = useState<string[]>([])
   const [sources, setSources] = useState<string[]>(['104'])
   const [minSalary, setMinSalary] = useState(0)
   const [minAnnualSalary, setMinAnnualSalary] = useState(0)
@@ -154,6 +165,7 @@ export default function SearchPage() {
           pages,
           areas,
           experience,
+          remote,
           sources,
           categories: isYourator ? youraCategories : [],
           salary_min: isYourator ? youratSalaryMin : 0,
@@ -270,6 +282,19 @@ export default function SearchPage() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">
+              遠端工作
+              <span className="form-label__hint">不勾選代表不限；三個平台皆會套用此條件</span>
+            </label>
+            <CheckboxGroup
+              options={options.remote ?? FALLBACK_OPTIONS.remote}
+              selected={remote}
+              prefix="remote"
+              onChange={setRemote}
+            />
           </div>
 
           {/* Tabs Navigation */}
@@ -608,6 +633,9 @@ export default function SearchPage() {
                       >
                         {job.job}
                       </button>
+                      {REMOTE_BADGE_LABEL[job.remote_type] && (
+                        <span className="remote-badge">{REMOTE_BADGE_LABEL[job.remote_type]}</span>
+                      )}
                     </td>
                     <td>{job.company}</td>
                     <td>{job.city}</td>

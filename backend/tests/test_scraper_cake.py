@@ -273,3 +273,58 @@ class TestParseJob:
         job = _parse_job(self._make_entity(seniorityLevel="no_preference"))
         assert job is not None
         assert job.experience == "不拘"
+
+
+class TestRemoteAndTaoyuan:
+    def test_taoyuan_area_mapped(self):
+        url = _build_url("Python", 1, areas=["6001005000"])
+        assert "%E6%A1%83%E5%9C%92%E5%B8%82-%E5%8F%B0%E7%81%A3" in url  # 桃園市-台灣
+
+    def test_no_remote_param_when_not_requested(self):
+        assert "remote" not in _build_url("Python", 1)
+
+    def test_full_remote_uses_indexed_array(self):
+        url = _build_url("Python", 1, remote=["full"])
+        assert "remote%5B0%5D=full_remote_work" in url
+
+    def test_partial_remote_covers_optional_too(self):
+        # 「部分遠端工作」and「選擇性或彈性遠端工作」both count as partial
+        url = _build_url("Python", 1, remote=["partial"])
+        assert "remote%5B0%5D=partial_remote_work" in url
+        assert "remote%5B1%5D=optional_remote_work" in url
+
+    def test_both_keys_emit_three_values_without_duplicates(self):
+        url = _build_url("Python", 1, remote=["full", "partial"])
+        assert url.count("remote%5B") == 3
+
+    def test_unknown_remote_key_skipped(self):
+        assert "remote%5B" not in _build_url("Python", 1, remote=["hybrid"])
+
+
+class TestParseRemoteType:
+    def test_missing_field_leaves_type_unknown(self):
+        job = _parse_job({"path": "p", "title": "X", "page": {"path": "c"}})
+        assert job.remote_type == ""
+
+    def test_full_remote_option(self):
+        job = _parse_job(
+            {"path": "p", "title": "X", "page": {"path": "c"}, "remoteOption": "full_remote_work"}
+        )
+        assert job.remote_type == "full"
+
+    def test_optional_remote_counts_as_partial(self):
+        job = _parse_job(
+            {
+                "path": "p",
+                "title": "X",
+                "page": {"path": "c"},
+                "remoteOption": "optional_remote_work",
+            }
+        )
+        assert job.remote_type == "partial"
+
+    def test_no_remote_option(self):
+        job = _parse_job(
+            {"path": "p", "title": "X", "page": {"path": "c"}, "remoteOption": "no_remote_work"}
+        )
+        assert job.remote_type == "none"

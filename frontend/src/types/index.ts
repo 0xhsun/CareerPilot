@@ -3,6 +3,8 @@ export interface JobSearchRequest {
   pages: number
   areas: string[]
   experience: string[]
+  /** 遠端工作型態：'full' 完全遠端 / 'partial' 部分遠端；空陣列代表不限 */
+  remote: string[]
   sources: string[]
   categories: string[]
   salary_min: number
@@ -24,6 +26,8 @@ export interface JobListing {
   salary_low: number
   salary_high: number
   is_featured: boolean
+  /** 'full' | 'partial' | 'none'；空字串代表來源未提供此欄位 */
+  remote_type: string
   source: string
 }
 
@@ -41,6 +45,7 @@ export interface Option {
 export interface JobOptions {
   areas: Option[]
   experience: Option[]
+  remote: Option[]
 }
 
 export type BookmarkStatus = '想投' | '已投' | '面試中' | '錄取' | '不適合'
@@ -60,6 +65,7 @@ export interface AlertCreateRequest {
   keyword: string
   areas: string[]
   experience: string[]
+  remote: string[]
   pages: number
   min_salary: number
   notify_type: 'discord' | 'webhook'
@@ -72,6 +78,7 @@ export interface Alert {
   keyword: string
   areas: string[]
   experience: string[]
+  remote?: string[]
   pages: number
   min_salary: number
   notify_type: 'discord' | 'line' | 'webhook'

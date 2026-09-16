@@ -1,5 +1,7 @@
 """Unit tests for scraper_yourator.py pure functions (no network calls)."""
 
+import pytest
+
 from app.scraper_yourator import _build_url, _parse_salary
 
 
@@ -137,3 +139,71 @@ class TestParseSalary:
         assert "~" in display
         assert "50,000" in display
         assert "75,000" in display
+
+
+class TestAreaMapping:
+    def test_taoyuan_maps_to_tao(self):
+        url = _build_url("Python", 1, areas=["6001005000"])
+        assert "area%5B%5D=TAO" in url
+
+    def test_hsinchu_expands_to_city_and_county(self):
+        # 104's 6001006000 covers 新竹縣市; Yourator splits it into HSZ / HSQ
+        url = _build_url("Python", 1, areas=["6001006000"])
+        assert "area%5B%5D=HSZ" in url
+        assert "area%5B%5D=HSQ" in url
+
+
+class TestRemoteUrl:
+    def test_absent_when_not_requested(self):
+        assert "remote_work" not in _build_url("Python", 1)
+
+    def test_full_remote(self):
+        url = _build_url("Python", 1, remote=["full"])
+        assert "remote_work%5B%5D=full" in url
+
+    def test_partial_remote(self):
+        url = _build_url("Python", 1, remote=["partial"])
+        assert "remote_work%5B%5D=partial" in url
+
+    def test_both_emit_two_params(self):
+        url = _build_url("Python", 1, remote=["full", "partial"])
+        assert url.count("remote_work%5B%5D=") == 2
+
+    def test_unknown_key_skipped(self):
+        assert "remote_work" not in _build_url("Python", 1, remote=["hybrid"])
+
+    def test_combines_with_area(self):
+        url = _build_url("Python", 1, areas=["6001005000"], remote=["full"])
+        assert "area%5B%5D=TAO" in url
+        assert "remote_work%5B%5D=full" in url
+
+
+class TestRemoteTagging:
+    """Yourator job payloads carry no remote field, so we tag from the filter."""
+
+    @staticmethod
+    async def _run(remote: list[str]) -> list[str]:
+        from unittest.mock import patch
+
+        from app.models import JobSearchRequest
+        from app.scraper_yourator import scrape_jobs
+
+        async def fake_fetch(session, url):
+            return [{"path": "/companies/a/jobs/b", "name": "工程師", "company": {"brand": "A"}}]
+
+        with patch("app.scraper_yourator._fetch_page", fake_fetch):
+            jobs = await scrape_jobs(JobSearchRequest(keyword="Python", pages=1, remote=remote))
+        return [j.remote_type for j in jobs]
+
+    @pytest.mark.anyio
+    async def test_single_filter_tags_every_job(self):
+        assert await self._run(["full"]) == ["full"]
+
+    @pytest.mark.anyio
+    async def test_no_filter_leaves_type_unknown(self):
+        assert await self._run([]) == [""]
+
+    @pytest.mark.anyio
+    async def test_ambiguous_filter_leaves_type_unknown(self):
+        # With both values requested we cannot tell which one a job matched
+        assert await self._run(["full", "partial"]) == [""]

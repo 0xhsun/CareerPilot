@@ -8,6 +8,10 @@ class JobSearchRequest(BaseModel):
     pages: int = Field(default=5, ge=1, le=20, description="爬取頁數")
     areas: list[str] = Field(default_factory=list, description="地區代碼清單")
     experience: list[str] = Field(default_factory=list, description="經歷要求代碼清單（104 用）")
+    remote: list[str] = Field(
+        default_factory=list,
+        description="遠端工作型態：full（完全遠端）/ partial（部分遠端），空清單代表不限",
+    )
     sources: list[str] = Field(default_factory=lambda: ["104"], description="搜尋來源")
     categories: list[str] = Field(default_factory=list, description="職缺類別（Yourator 用）")
     salary_min: int = Field(default=0, ge=0, description="月薪下限篩選（元，Yourator 用）")
@@ -34,6 +38,10 @@ class JobListing(BaseModel):
     salary_low: int = Field(default=0, description="薪水下限（元/月）")
     salary_high: int = Field(default=0, description="薪水上限（元/月）")
     is_featured: bool = Field(default=False, description="是否為精選職缺")
+    remote_type: str = Field(
+        default="",
+        description="遠端型態：full | partial | none；空字串代表來源未提供此欄位",
+    )
     source: str = Field(default="104", description="職缺來源")
 
 
@@ -43,6 +51,7 @@ class AlertCreateRequest(BaseModel):
     keyword: str = Field(min_length=1, description="搜尋關鍵字")
     areas: list[str] = Field(default_factory=list, description="地區代碼清單")
     experience: list[str] = Field(default_factory=list, description="經歷要求代碼清單")
+    remote: list[str] = Field(default_factory=list, description="遠端工作型態：full / partial")
     pages: int = Field(default=3, ge=1, le=10, description="爬取頁數")
     min_salary: int = Field(default=0, ge=0, description="最低月薪篩選（元）")
     notify_type: str = Field(description="通知方式：discord | webhook")

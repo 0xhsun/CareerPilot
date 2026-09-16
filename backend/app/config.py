@@ -53,10 +53,19 @@ class Settings(BaseSettings):
 AREA_OPTIONS = [
     {"value": "6001001000", "label": "台北市"},
     {"value": "6001002000", "label": "新北市"},
+    {"value": "6001005000", "label": "桃園市"},
     {"value": "6001006000", "label": "新竹市"},
     {"value": "6001008000", "label": "台中市"},
     {"value": "6001014000", "label": "台南市"},
     {"value": "6001016000", "label": "高雄市"},
+]
+
+# Remote-work options for the frontend.
+# Values are platform-neutral keys; each scraper maps them to its own site param
+# (104: remoteWork=1|2, Yourator: remote_work[]=full|partial, Cake: remote[n]=...).
+REMOTE_OPTIONS = [
+    {"value": "full", "label": "完全遠端"},
+    {"value": "partial", "label": "部分遠端"},
 ]
 
 # Experience options for the frontend

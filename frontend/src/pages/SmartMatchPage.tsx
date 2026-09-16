@@ -8,6 +8,7 @@ const FALLBACK_OPTIONS: JobOptions = {
   areas: [
     { value: '6001001000', label: '台北市' },
     { value: '6001002000', label: '新北市' },
+    { value: '6001005000', label: '桃園市' },
     { value: '6001006000', label: '新竹市' },
     { value: '6001008000', label: '台中市' },
     { value: '6001014000', label: '台南市' },
@@ -19,6 +20,10 @@ const FALLBACK_OPTIONS: JobOptions = {
     { value: '5', label: '3-5年' },
     { value: '10', label: '5-10年' },
     { value: '99', label: '10年以上' },
+  ],
+  remote: [
+    { value: 'full', label: '完全遠端' },
+    { value: 'partial', label: '部分遠端' },
   ],
 }
 
@@ -33,6 +38,7 @@ export default function SmartMatchPage() {
   const [newKeyword, setNewKeyword] = useState('')
   const [sources, setSources] = useState<string[]>(['104'])
   const [areas, setAreas] = useState<string[]>([])
+  const [remote, setRemote] = useState<string[]>([])
   const [options, setOptions] = useState<JobOptions>(FALLBACK_OPTIONS)
   const [jobs, setJobs] = useState<JobListing[]>([])
   const [evaluations, setEvaluations] = useState<Map<string, JobEvaluateResponse>>(new Map())
@@ -97,6 +103,7 @@ export default function SmartMatchPage() {
         pages: 5,
         areas,
         experience: [],
+        remote,
         sources,
         categories: [],
         salary_min: 0,
@@ -249,6 +256,16 @@ export default function SmartMatchPage() {
           <div className="form-group">
             <label className="form-label">選擇地區</label>
             <CheckboxGroup options={options.areas} selected={areas} prefix="sm-area" onChange={setAreas} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">遠端工作</label>
+            <CheckboxGroup
+              options={options.remote ?? FALLBACK_OPTIONS.remote}
+              selected={remote}
+              prefix="sm-remote"
+              onChange={setRemote}
+            />
           </div>
 
           <div className="form-group" style={{ marginTop: '1rem' }}>

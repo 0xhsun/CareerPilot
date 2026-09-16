@@ -28,6 +28,7 @@ MAX_PAGES = 3
 _AREA_TO_CAKE_CITY: dict[str, str] = {
     "6001001000": "台北市-台灣",
     "6001002000": "新北市-台灣",
+    "6001005000": "桃園市-台灣",
     "6001006000": "新竹市-台灣",
     "6001008000": "台中市-台灣",
     "6001014000": "台南市-台灣",
@@ -42,6 +43,22 @@ _EXP_TO_CAKE: dict[str, str] = {
     "5": "associate",  # 3-5年  → 助理
     "10": "mid_senior_level",  # 5-10年 → 中高階
     "99": "director",  # 10年以上 → 經理/總監
+}
+
+# Remote-work mapping. CakeResume takes an indexed array — remote[0]=..&remote[1]=..
+# — with values no_remote_work / partial_remote_work / optional_remote_work /
+# full_remote_work (「選擇性或彈性遠端工作」counts as partial for our purposes).
+_REMOTE_TO_CAKE: dict[str, list[str]] = {
+    "full": ["full_remote_work"],
+    "partial": ["partial_remote_work", "optional_remote_work"],
+}
+
+# CakeResume remote values → our platform-neutral keys (for parsing fetched jobs)
+_CAKE_REMOTE_TO_TYPE: dict[str, str] = {
+    "no_remote_work": "none",
+    "partial_remote_work": "partial",
+    "optional_remote_work": "partial",
+    "full_remote_work": "full",
 }
 
 # CakeResume seniority level display mapping (for parsing fetched job data)
@@ -73,6 +90,7 @@ def _build_url(
     cake_seniority: list[str] | None = None,
     cake_salary_min: int = 0,
     cake_salary_max: int = 0,
+    remote: list[str] | None = None,
 ) -> str:
     """Build CakeResume search URL.
 
@@ -102,6 +120,14 @@ def _build_url(
     # e.g. ["entry_level", "mid_senior_level"]
     if cake_seniority:
         params.append(("seniority_levels", ",".join(cake_seniority)))
+
+    cake_remote: list[str] = []
+    for key in remote or []:
+        for value in _REMOTE_TO_CAKE.get(key, []):
+            if value not in cake_remote:
+                cake_remote.append(value)
+    for idx, value in enumerate(cake_remote):
+        params.append((f"remote[{idx}]", value))
 
     if cake_salary_min > 0 or cake_salary_max > 0:
         params.append(("salary.type", "per_month"))
@@ -213,6 +239,7 @@ def _parse_job(entity: dict) -> JobListing | None:
         seniority = entity.get("seniorityLevel", "")
         experience = SENIORITY_DISPLAY.get(seniority, seniority or "不拘")
         salary_low, salary_high, salary = _parse_salary(entity.get("salary"))
+        remote_type = _CAKE_REMOTE_TO_TYPE.get(entity.get("remoteOption") or "", "")
 
         return JobListing(
             job=job_name,
@@ -226,6 +253,7 @@ def _parse_job(entity: dict) -> JobListing | None:
             salary_low=salary_low,
             salary_high=salary_high,
             is_featured=False,
+            remote_type=remote_type,
             source="CakeResume",
         )
     except Exception as e:
@@ -265,6 +293,7 @@ async def scrape_jobs(request: JobSearchRequest) -> list[JobListing]:
             request.cake_seniority,
             request.cake_salary_min,
             request.cake_salary_max,
+            request.remote,
         )
         for page in range(1, pages_to_fetch + 1)
     ]

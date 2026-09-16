@@ -40,7 +40,7 @@ npx tsc --noEmit   # Type-check without emitting files
 backend/
   app/
     main.py           # FastAPI app: CORS, static files, lifespan (init_db + scheduler + liveness tasks)
-    config.py         # Settings (pydantic-settings), AREA_OPTIONS, EXPERIENCE_OPTIONS constants
+    config.py         # Settings (pydantic-settings), AREA_OPTIONS, EXPERIENCE_OPTIONS, REMOTE_OPTIONS constants
     models.py         # Pydantic models: JobSearchRequest, JobListing, AlertCreateRequest, etc.
     db.py             # aiosqlite helpers: init_db(), CRUD for evaluations / cover_letters / resume_rewrites / job_liveness
     scraper.py        # Async scraper hitting 104's internal JSON API via aiohttp
@@ -115,9 +115,16 @@ static/                 # Served at /static by FastAPI
 
 **104 API:** Targets `https://www.104.com.tw/jobs/search/api/jobs` with a `Referer` header and SSL cert verification disabled (104 cert quirk). Area and experience codes are URL-encoded comma-joined lists.
 
-**CakeResume scraper:** Hits `https://www.cake.me/jobs` via Playwright headless browser. Extracts job data directly from Next.js SSR `__NEXT_DATA__` JSON structure to bypass client-side rendering limitations. Supports location and seniority filtering.
+**Remote-work filter (`remote`):** A platform-neutral request field taking `full` (完全遠端) and/or `partial` (部分遠端); an empty list means 不限. Each scraper maps it to that site's own param, and every `JobListing` carries a `remote_type` of `full` / `partial` / `none` (`""` = the source doesn't expose it). Combining `remote` with `areas` is an AND on all three sites.
+- **104** — `remoteWork=1` (完全遠端) / `2` (部分遠端) / `1,2` (both); `remoteWork=0` is an HTTP 400. Each job carries `remoteWorkType` (0/1/2). **104 pads every page with exactly 2 sponsored listings that ignore `remoteWork`**, so `scraper.py` post-filters on each job's own `remoteWorkType` — without this, ~6% of results would not match the filter.
+- **Yourator** — `remote_work[]=full|partial` (part of the site's 工作型態 filter). Job payloads carry no remote field, so a single-value filter tags every returned job; requesting both values leaves `remote_type` empty because the response can't disambiguate. No ad padding observed.
+- **CakeResume** — indexed array `remote[0]=full_remote_work&remote[1]=partial_remote_work&remote[2]=optional_remote_work`; 「選擇性或彈性遠端工作」is folded into `partial`. **Not live-verified** — see the CakeResume note below.
 
-**Yourator scraper:** Hits `https://www.yourator.co/api/v4/jobs` JSON API via aiohttp. Supports `categories` (list of category slugs) and `salary_min` / `salary_max` (monthly salary range in NTD). Both filters are forwarded directly as query params.
+**CakeResume scraper:** Hits `https://www.cake.me/jobs` via Playwright headless browser. Extracts job data directly from Next.js SSR `__NEXT_DATA__` JSON structure to bypass client-side rendering limitations. Supports location, seniority and remote filtering.
+
+> ⚠️ **Known breakage (pre-existing):** cake.me now serves a Cloudflare challenge to headless Chromium, so `scraper_cake.scrape_jobs()` returns 0 jobs for *any* query, including an unfiltered one. Its area/remote param mappings are derived from Cake's own indexed filter URLs but could not be confirmed against a live response.
+
+**Yourator scraper:** Hits `https://www.yourator.co/api/v4/jobs` JSON API via aiohttp. Supports `categories` (list of category slugs) and `salary_min` / `salary_max` (monthly salary range in NTD). Both filters are forwarded directly as query params. Area codes come from `GET /api/v4/areas`; note 104's single `6001006000` (新竹縣市) maps to *two* Yourator codes, `HSZ` + `HSQ`.
 
 **Fetchers (`fetchers.py`):** Shared HTTP helpers used by the URL-fetch endpoint and the liveness checker.
 - `fetch_104_detail(url)` — calls `https://www.104.com.tw/job/ajax/content/{job_id}` and formats structured job data as plain text.

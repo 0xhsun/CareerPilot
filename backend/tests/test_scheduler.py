@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.models import JobListing
-from app.scheduler import DISCORD_MESSAGE_LIMIT, _is_due, _notify_discord, _send_notification
+from app.scheduler import (
+    DISCORD_MESSAGE_LIMIT,
+    _fetch_new_jobs,
+    _is_due,
+    _notify_discord,
+    _send_notification,
+)
 
 
 class TestIsDue:
@@ -156,3 +162,35 @@ class TestNotifyDiscord:
         sent = session.post.await_args.kwargs["json"]["content"]
         assert len(sent) == DISCORD_MESSAGE_LIMIT
         assert sent.endswith("…")
+
+
+class TestAlertRemotePassthrough:
+    @pytest.mark.anyio
+    async def test_remote_forwarded_to_search_request(self):
+        captured = {}
+
+        async def fake_scrape(request):
+            captured["remote"] = request.remote
+            captured["areas"] = request.areas
+            return []
+
+        with patch("app.scraper.scrape_jobs", fake_scrape):
+            await _fetch_new_jobs(
+                {"keyword": "Python", "areas": ["6001005000"], "remote": ["full"]}
+            )
+
+        assert captured["remote"] == ["full"]
+        assert captured["areas"] == ["6001005000"]
+
+    @pytest.mark.anyio
+    async def test_legacy_alert_without_remote_defaults_to_empty(self):
+        captured = {}
+
+        async def fake_scrape(request):
+            captured["remote"] = request.remote
+            return []
+
+        with patch("app.scraper.scrape_jobs", fake_scrape):
+            await _fetch_new_jobs({"keyword": "Python"})
+
+        assert captured["remote"] == []

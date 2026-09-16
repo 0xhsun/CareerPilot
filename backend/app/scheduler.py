@@ -98,6 +98,7 @@ async def _fetch_new_jobs(alert: dict) -> list[JobListing]:
         pages=alert.get("pages", 3),
         areas=alert.get("areas", []),
         experience=alert.get("experience", []),
+        remote=alert.get("remote", []),
     )
     jobs = await scrape_jobs(request)
 

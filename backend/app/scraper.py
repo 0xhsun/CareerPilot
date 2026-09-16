@@ -20,6 +20,21 @@ EDU_MAP = {
     6: "博士",
 }
 
+# Remote-work mapping.
+# 104 takes `remoteWork` as a comma-joined list of type codes; each job carries the
+# matching `remoteWorkType`. Verified live 2026-09-16: remoteWork=1 → 完全遠端,
+# remoteWork=2 → 部分遠端, remoteWork=1,2 → both, remoteWork=0 → HTTP 400.
+REMOTE_TO_104 = {
+    "full": "1",
+    "partial": "2",
+}
+
+REMOTE_TYPE_MAP = {
+    0: "none",
+    1: "full",
+    2: "partial",
+}
+
 # Experience / period mapping
 PERIOD_MAP = {
     0: "不拘",
@@ -56,13 +71,15 @@ def _format_edu(edu_list: list[int]) -> str:
     return EDU_MAP.get(min_edu, "不拘")
 
 
-def _build_url(keyword: str, area: str, page: int, jobexp: str) -> str:
+def _build_url(keyword: str, area: str, page: int, jobexp: str, remote: str = "") -> str:
     """Build 104 API URL."""
     params = f"keyword={keyword}&order=15&page={page}&mode=s&jobsource=2021indexpoc&ro=0"
     if area:
         params += f"&area={area}"
     if jobexp:
         params += f"&jobexp={jobexp}"
+    if remote:
+        params += f"&remoteWork={remote}"
     return f"{settings.BASE_URL}?{params}"
 
 
@@ -97,6 +114,7 @@ def _parse_job(item: dict) -> JobListing | None:
 
         # Featured jobs don't have a normal date
         is_featured = item.get("jobRo", 0) == 1 and not appear_date
+        remote_type = REMOTE_TYPE_MAP.get(item.get("remoteWorkType", 0), "none")
 
         return JobListing(
             job=job_name,
@@ -110,6 +128,7 @@ def _parse_job(item: dict) -> JobListing | None:
             salary_low=salary_low_val,
             salary_high=salary_high_val,
             is_featured=is_featured,
+            remote_type=remote_type,
             source="104",
         )
     except Exception as e:
@@ -126,8 +145,12 @@ async def scrape_jobs(request: JobSearchRequest) -> list[JobListing]:
     area_str = "%2C".join(request.areas) if request.areas else ""
     exp_str = "%2C".join(request.experience) if request.experience else ""
 
+    wanted_remote = {r for r in request.remote if r in REMOTE_TO_104}
+    remote_str = "%2C".join(REMOTE_TO_104[r] for r in sorted(wanted_remote))
+
     urls = [
-        _build_url(request.keyword, area_str, page, exp_str) for page in range(1, request.pages + 1)
+        _build_url(request.keyword, area_str, page, exp_str, remote_str)
+        for page in range(1, request.pages + 1)
     ]
 
     headers = {
@@ -166,6 +189,10 @@ async def scrape_jobs(request: JobSearchRequest) -> list[JobListing]:
         for item in page_items:
             job = _parse_job(item)
             if job is None:
+                continue
+            # 104 pads every page with 2 sponsored listings that ignore remoteWork,
+            # so trust the per-job remoteWorkType rather than the query alone.
+            if wanted_remote and job.remote_type not in wanted_remote:
                 continue
             if job.link in seen_links:
                 continue

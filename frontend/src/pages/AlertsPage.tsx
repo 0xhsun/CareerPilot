@@ -15,6 +15,7 @@ const FALLBACK_OPTIONS: JobOptions = {
   areas: [
     { value: '6001001000', label: '台北市' },
     { value: '6001002000', label: '新北市' },
+    { value: '6001005000', label: '桃園市' },
     { value: '6001006000', label: '新竹市' },
     { value: '6001008000', label: '台中市' },
     { value: '6001014000', label: '台南市' },
@@ -27,6 +28,15 @@ const FALLBACK_OPTIONS: JobOptions = {
     { value: '10', label: '5-10年' },
     { value: '99', label: '10年以上' },
   ],
+  remote: [
+    { value: 'full', label: '完全遠端' },
+    { value: 'partial', label: '部分遠端' },
+  ],
+}
+
+const REMOTE_LABEL: Record<string, string> = {
+  full: '完全遠端',
+  partial: '部分遠端',
 }
 
 function formatInterval(minutes: number): string {
@@ -52,6 +62,7 @@ export default function AlertsPage() {
   const [keyword, setKeyword] = useState('')
   const [areas, setAreas] = useState<string[]>([])
   const [experience, setExperience] = useState<string[]>([])
+  const [remote, setRemote] = useState<string[]>([])
   const [alertPages, setAlertPages] = useState(3)
   const [minSalary, setMinSalary] = useState(0)
   const [interval, setInterval] = useState(60)
@@ -93,6 +104,7 @@ export default function AlertsPage() {
         keyword,
         areas,
         experience,
+        remote,
         pages: alertPages,
         min_salary: minSalary,
         notify_type: notifyType,
@@ -103,6 +115,7 @@ export default function AlertsPage() {
       setKeyword('')
       setAreas([])
       setExperience([])
+      setRemote([])
       setAlertPages(3)
       setMinSalary(0)
       setInterval(60)
@@ -192,6 +205,17 @@ export default function AlertsPage() {
                 selected={experience}
                 prefix="a-exp"
                 onChange={setExperience}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">
+                遠端工作
+              </label>
+              <CheckboxGroup
+                options={options.remote ?? FALLBACK_OPTIONS.remote}
+                selected={remote}
+                prefix="a-remote"
+                onChange={setRemote}
               />
             </div>
           </div>
@@ -336,6 +360,11 @@ export default function AlertsPage() {
                   {alert.experience.length > 0 && (
                     <span className="alert-chip">{alert.experience.length} 個經歷</span>
                   )}
+                  {(alert.remote ?? []).map(r => (
+                    <span className="alert-chip" key={r}>
+                      {REMOTE_LABEL[r] ?? r}
+                    </span>
+                  ))}
                   <span className="alert-chip">{alert.pages} 頁</span>
                 </div>
                 <div className="alert-card__footer">

@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, patch
 
-from app.config import AREA_OPTIONS, EXPERIENCE_OPTIONS
+from app.config import AREA_OPTIONS, EXPERIENCE_OPTIONS, REMOTE_OPTIONS
 from app.models import JobListing
 
 
@@ -31,6 +31,11 @@ class TestOptions:
         body = resp.json()
         assert body["areas"] == AREA_OPTIONS
         assert body["experience"] == EXPERIENCE_OPTIONS
+        assert body["remote"] == REMOTE_OPTIONS
+
+    def test_taoyuan_is_selectable(self, client):
+        values = [a["value"] for a in client.get("/api/jobs/options").json()["areas"]]
+        assert "6001005000" in values
 
     def test_areas_have_value_and_label(self, client):
         resp = client.get("/api/jobs/options")
