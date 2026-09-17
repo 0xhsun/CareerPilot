@@ -24,15 +24,20 @@ CAKE_BASE_URL = "https://www.cake.me/jobs"
 # Maximum pages to fetch from CakeResume SSR (beyond this, results are typically empty/duplicates)
 MAX_PAGES = 3
 
-# Map 104 area codes → CakeResume location strings (中文格式 e.g. 台北市-台灣)
-_AREA_TO_CAKE_CITY: dict[str, str] = {
-    "6001001000": "台北市-台灣",
-    "6001002000": "新北市-台灣",
-    "6001005000": "桃園市-台灣",
-    "6001006000": "新竹市-台灣",
-    "6001008000": "台中市-台灣",
-    "6001014000": "台南市-台灣",
-    "6001016000": "高雄市-台灣",
+# Map 104 area codes → CakeResume location strings (中文格式 e.g. 台北市-台灣).
+# One 104 code can span several Cake locations: 6001006000 is 新竹縣市 on 104 but
+# Cake lists 新竹市 and 新竹縣 separately, so the value is a list.
+_AREA_TO_CAKE_CITY: dict[str, list[str]] = {
+    "6001001000": ["台北市-台灣"],
+    "6001002000": ["新北市-台灣"],
+    "6001003000": ["宜蘭縣-台灣"],
+    "6001004000": ["基隆市-台灣"],
+    "6001005000": ["桃園市-台灣"],
+    "6001006000": ["新竹市-台灣", "新竹縣-台灣"],
+    "6001007000": ["苗栗縣-台灣"],
+    "6001008000": ["台中市-台灣"],
+    "6001014000": ["台南市-台灣"],
+    "6001016000": ["高雄市-台灣"],
 }
 
 # Map frontend experience codes → CakeResume seniority_levels values
@@ -107,11 +112,11 @@ def _build_url(
         ("locale", "zh-TW"),
     ]
 
-    cake_locations = []
+    cake_locations: list[str] = []
     for area_code in areas or []:
-        city_slug = _AREA_TO_CAKE_CITY.get(area_code)
-        if city_slug:
-            cake_locations.append(city_slug)
+        for city_slug in _AREA_TO_CAKE_CITY.get(area_code, []):
+            if city_slug not in cake_locations:
+                cake_locations.append(city_slug)
 
     if cake_locations:
         params.append(("locations", ",".join(cake_locations)))

@@ -8,8 +8,11 @@ const FALLBACK_OPTIONS: JobOptions = {
   areas: [
     { value: '6001001000', label: '台北市' },
     { value: '6001002000', label: '新北市' },
+    { value: '6001003000', label: '宜蘭縣' },
+    { value: '6001004000', label: '基隆市' },
     { value: '6001005000', label: '桃園市' },
-    { value: '6001006000', label: '新竹市' },
+    { value: '6001006000', label: '新竹縣市' },
+    { value: '6001007000', label: '苗栗縣' },
     { value: '6001008000', label: '台中市' },
     { value: '6001014000', label: '台南市' },
     { value: '6001016000', label: '高雄市' },

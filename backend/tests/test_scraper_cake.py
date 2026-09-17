@@ -1,9 +1,11 @@
 """Unit tests for scraper_cake.py pure functions (no network calls)."""
 
 from unittest.mock import patch
+from urllib.parse import unquote
 
 from app.models import JobSearchRequest
 from app.scraper_cake import (
+    _AREA_TO_CAKE_CITY,
     MAX_PAGES,
     _build_url,
     _extract_jobs_from_next_data,
@@ -66,6 +68,25 @@ class TestBuildUrl:
         url = _build_url("Python", 1, areas=["6001001000", "6001002000"])
         assert "%E5%8F%B0%E5%8C%97%E5%B8%82" in url  # 台北市
         assert "%E6%96%B0%E5%8C%97%E5%B8%82" in url  # 新北市
+
+    def test_hsinchu_expands_to_city_and_county(self):
+        # 104's 6001006000 is 新竹縣市; Cake lists the city and county separately
+        url = _build_url("Python", 1, areas=["6001006000"])
+        assert unquote(url).count("新竹") == 2
+        assert "新竹市-台灣" in unquote(url)
+        assert "新竹縣-台灣" in unquote(url)
+
+    def test_northern_areas_mapped(self):
+        url = unquote(_build_url("Python", 1, areas=["6001003000", "6001004000", "6001007000"]))
+        assert "宜蘭縣-台灣" in url
+        assert "基隆市-台灣" in url
+        assert "苗栗縣-台灣" in url
+
+    def test_every_offered_area_is_mapped(self):
+        from app.config import AREA_OPTIONS
+
+        for area in AREA_OPTIONS:
+            assert _AREA_TO_CAKE_CITY.get(area["value"]), area["label"]
 
     def test_salary_min_max(self):
         url = _build_url("Python", 1, cake_salary_min=70000, cake_salary_max=100000)

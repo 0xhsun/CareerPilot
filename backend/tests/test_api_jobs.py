@@ -37,6 +37,20 @@ class TestOptions:
         values = [a["value"] for a in client.get("/api/jobs/options").json()["areas"]]
         assert "6001005000" in values
 
+    def test_northern_areas_are_selectable(self, client):
+        areas = client.get("/api/jobs/options").json()["areas"]
+        labels = {a["value"]: a["label"] for a in areas}
+        # 宜蘭 / 基隆 / 苗栗 round out the north alongside 台北/新北/桃園/新竹
+        assert labels["6001003000"] == "宜蘭縣"
+        assert labels["6001004000"] == "基隆市"
+        assert labels["6001007000"] == "苗栗縣"
+        # 104 serves both 新竹市 and 新竹縣 jobs under this single code
+        assert labels["6001006000"] == "新竹縣市"
+
+    def test_area_values_are_unique(self, client):
+        values = [a["value"] for a in client.get("/api/jobs/options").json()["areas"]]
+        assert len(values) == len(set(values))
+
     def test_areas_have_value_and_label(self, client):
         resp = client.get("/api/jobs/options")
         for area in resp.json()["areas"]:

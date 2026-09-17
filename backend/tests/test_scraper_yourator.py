@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.scraper_yourator import _build_url, _parse_salary
+from app.scraper_yourator import _AREA_TO_YOURATOR_CODE, _build_url, _parse_salary
 
 
 class TestBuildUrl:
@@ -151,6 +151,21 @@ class TestAreaMapping:
         url = _build_url("Python", 1, areas=["6001006000"])
         assert "area%5B%5D=HSZ" in url
         assert "area%5B%5D=HSQ" in url
+
+    def test_keelung_maps_to_kee(self):
+        assert "area%5B%5D=KEE" in _build_url("Python", 1, areas=["6001004000"])
+
+    def test_yilan_maps_to_ila(self):
+        assert "area%5B%5D=ILA" in _build_url("Python", 1, areas=["6001003000"])
+
+    def test_miaoli_maps_to_mia(self):
+        assert "area%5B%5D=MIA" in _build_url("Python", 1, areas=["6001007000"])
+
+    def test_every_offered_area_is_mapped(self):
+        from app.config import AREA_OPTIONS
+
+        for area in AREA_OPTIONS:
+            assert _AREA_TO_YOURATOR_CODE.get(area["value"]), area["label"]
 
 
 class TestRemoteUrl:
